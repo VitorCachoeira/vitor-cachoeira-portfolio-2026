@@ -6,6 +6,7 @@ import {
   updateProject, 
   addProject, 
   deleteProject,
+  saveProjects,
   getAboutMeImage,
   updateAboutMeImage,
   getRoles,
@@ -106,6 +107,26 @@ export function AdminDashboard({ navigate }: { navigate?: NavigateFunction }) {
     } catch (error) {
       console.error('Failed to delete project:', error)
       alert('Failed to delete project')
+    }
+  }
+
+  const handleMoveProject = async (id: string, direction: 'up' | 'down') => {
+    const index = projects.findIndex((p) => p.id === id)
+    if (index === -1) return
+    if (direction === 'up' && index === 0) return
+    if (direction === 'down' && index === projects.length - 1) return
+
+    const reordered = [...projects]
+    const swapIndex = direction === 'up' ? index - 1 : index + 1
+    ;[reordered[index], reordered[swapIndex]] = [reordered[swapIndex], reordered[index]]
+
+    setProjects(reordered)
+    try {
+      await saveProjects(reordered)
+    } catch (error) {
+      console.error('Failed to reorder projects:', error)
+      alert('Failed to save new order')
+      await loadData()
     }
   }
 
@@ -302,12 +323,14 @@ export function AdminDashboard({ navigate }: { navigate?: NavigateFunction }) {
 
           {/* Projects List */}
           <div className="admin-dashboard__projects">
-            {projects.map((project) => (
+            {projects.map((project, index) => (
               <ProjectCard
                 key={project.id}
                 project={project}
                 onEdit={handleEditProject}
                 onDelete={handleDeleteProject}
+                onMoveUp={index > 0 ? () => handleMoveProject(project.id, 'up') : undefined}
+                onMoveDown={index < projects.length - 1 ? () => handleMoveProject(project.id, 'down') : undefined}
               />
             ))}
           </div>
@@ -320,11 +343,15 @@ export function AdminDashboard({ navigate }: { navigate?: NavigateFunction }) {
 function ProjectCard({ 
   project, 
   onEdit, 
-  onDelete 
+  onDelete,
+  onMoveUp,
+  onMoveDown,
 }: { 
   project: VideoMeta
   onEdit: (project: VideoMeta) => void
   onDelete: (id: string) => void
+  onMoveUp?: () => void
+  onMoveDown?: () => void
 }) {
   const thumbnail = project.thumbnailUrl || (
     project.platform === 'youtube' 
@@ -334,6 +361,24 @@ function ProjectCard({
 
   return (
     <div className="admin-project-card">
+      <div className="admin-project-card__order">
+        <button
+          onClick={onMoveUp}
+          disabled={!onMoveUp}
+          className="admin-project-card__order-btn"
+          title="Mover para cima"
+        >
+          ▲
+        </button>
+        <button
+          onClick={onMoveDown}
+          disabled={!onMoveDown}
+          className="admin-project-card__order-btn"
+          title="Mover para baixo"
+        >
+          ▼
+        </button>
+      </div>
       <div className="admin-project-card__thumbnail">
         <img src={thumbnail} alt={project.title} />
       </div>
