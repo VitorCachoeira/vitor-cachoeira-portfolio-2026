@@ -179,7 +179,6 @@ function App() {
 
         <footer className="footer">
           <div>
-            <span>Available for commercial, documentary, and music projects.</span>
             <span>Based in São Paulo • Working worldwide</span>
           </div>
           <div className="footer__social">
