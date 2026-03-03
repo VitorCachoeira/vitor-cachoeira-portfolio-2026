@@ -1,6 +1,6 @@
-// Camada de API que integra o painel admin com um backend opcional.
-// Se VITE_API_BASE_URL NÃO estiver definido, tudo continua funcionando só com localStorage (comportamento atual),
-// mas quando for definido, o estado passa a ser salvo e lido de um backend (multi-dispositivo).
+// Camada de API integrada com backend opcional (Neon Postgres via Render).
+// Faz UMA única chamada ao backend por carregamento de página (cache em memória),
+// evitando race conditions e flashes de conteúdo desatualizado.
 
 import type { VideoMeta, VideoRole } from '../data/videos'
 import { videos } from '../data/videos'
@@ -51,28 +51,43 @@ export const logout = (): void => {
 export const isAuthenticated = (): boolean => {
   const authenticated = localStorage.getItem('admin_authenticated')
   const session = localStorage.getItem('admin_session')
-  
+
   if (!authenticated || !session) return false
-  
+
   const sessionTime = parseInt(session, 10)
   const now = Date.now()
   if (Number.isNaN(sessionTime) || now - sessionTime > 24 * 60 * 60 * 1000) {
     logout()
     return false
   }
-  
+
   return true
 }
 
 // ----------------------
-// Helpers de estado (localStorage + backend opcional)
+// Cache em memória — UMA chamada à API por sessão de página
 // ----------------------
 
-const loadStateFromLocalStorage = async (): Promise<SiteState> => {
+let _stateCache: SiteState | null = null
+let _stateCachePromise: Promise<SiteState> | null = null
+
+const saveStateToLocalStorage = (state: SiteState): void => {
+  localStorage.setItem(STORAGE_KEYS.projects, JSON.stringify(state.projects))
+  localStorage.setItem(STORAGE_KEYS.roles, JSON.stringify(state.roles))
+  localStorage.setItem(STORAGE_KEYS.aboutMeImage, state.aboutMeImage)
+}
+
+const loadStateFromLocalStorage = (): SiteState => {
   try {
     const projectsRaw = localStorage.getItem(STORAGE_KEYS.projects)
     const rolesRaw = localStorage.getItem(STORAGE_KEYS.roles)
     const aboutMeRaw = localStorage.getItem(STORAGE_KEYS.aboutMeImage)
+
+    // Só usa localStorage se API_BASE_URL NÃO estiver configurado.
+    // Com API, sempre confia no servidor; localStorage é só write-through.
+    if (API_BASE_URL) {
+      return DEFAULT_STATE
+    }
 
     const projects = projectsRaw ? (JSON.parse(projectsRaw) as VideoMeta[]) : DEFAULT_STATE.projects
     const roles = rolesRaw ? (JSON.parse(rolesRaw) as string[]) : DEFAULT_STATE.roles
@@ -84,35 +99,20 @@ const loadStateFromLocalStorage = async (): Promise<SiteState> => {
   }
 }
 
-const saveStateToLocalStorage = (state: SiteState): void => {
-  localStorage.setItem(STORAGE_KEYS.projects, JSON.stringify(state.projects))
-  localStorage.setItem(STORAGE_KEYS.roles, JSON.stringify(state.roles))
-  localStorage.setItem(STORAGE_KEYS.aboutMeImage, state.aboutMeImage)
-}
-
-const loadStateFromApi = async (): Promise<SiteState> => {
-  if (!API_BASE_URL) {
-    return DEFAULT_STATE
-  }
-
+const fetchStateFromApi = async (): Promise<SiteState> => {
   const res = await fetch(`${API_BASE_URL}/state`)
-  if (!res.ok) {
-    throw new Error('Failed to load state from API')
-  }
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
   const data = (await res.json()) as Partial<SiteState>
 
   return {
-    projects: data.projects && data.projects.length > 0 ? data.projects : DEFAULT_STATE.projects,
-    roles: data.roles && data.roles.length > 0 ? data.roles : DEFAULT_STATE.roles,
+    // Respeita array vazio se o usuário apagou tudo — não usa DEFAULT como fallback de array vazio
+    projects: Array.isArray(data.projects) ? data.projects : DEFAULT_STATE.projects,
+    roles: Array.isArray(data.roles) && data.roles.length > 0 ? data.roles : DEFAULT_STATE.roles,
     aboutMeImage: data.aboutMeImage || DEFAULT_STATE.aboutMeImage,
   }
 }
 
 const saveStateToApi = async (state: SiteState): Promise<void> => {
-  if (!API_BASE_URL) {
-    return
-  }
-
   const res = await fetch(`${API_BASE_URL}/state`, {
     method: 'PUT',
     headers: {
@@ -124,30 +124,49 @@ const saveStateToApi = async (state: SiteState): Promise<void> => {
 
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    throw new Error(text || 'Failed to save state to API')
+    throw new Error(text || `API error: ${res.status}`)
   }
 }
 
-const loadState = async (): Promise<SiteState> => {
-  if (API_BASE_URL) {
-    try {
-      const state = await loadStateFromApi()
-      // também espelha no localStorage para ter cache offline
-      saveStateToLocalStorage(state)
-      return state
-    } catch {
-      // se a API falhar, tenta localStorage e depois defaults
-      return loadStateFromLocalStorage()
+const loadState = (): Promise<SiteState> => {
+  // Se já tem cache em memória, devolve imediatamente
+  if (_stateCache) return Promise.resolve(_stateCache)
+
+  // Se já tem uma promise em andamento, reutiliza (evita chamadas duplicadas)
+  if (_stateCachePromise) return _stateCachePromise
+
+  _stateCachePromise = (async () => {
+    if (API_BASE_URL) {
+      try {
+        const state = await fetchStateFromApi()
+        saveStateToLocalStorage(state)
+        _stateCache = state
+        return state
+      } catch (err) {
+        console.warn('[api] Falha ao carregar do backend, usando fallback.', err)
+        const fallback = loadStateFromLocalStorage()
+        _stateCache = fallback
+        return fallback
+      }
     }
-  }
 
-  return loadStateFromLocalStorage()
+    const state = loadStateFromLocalStorage()
+    _stateCache = state
+    return state
+  })()
+
+  return _stateCachePromise
 }
 
-const saveState = async (state: SiteState): Promise<void> => {
-  saveStateToLocalStorage(state)
+const saveState = async (nextState: SiteState): Promise<void> => {
+  // Atualiza cache imediatamente para o admin não "regredir" para estado antigo
+  _stateCache = nextState
+  _stateCachePromise = null
+
+  saveStateToLocalStorage(nextState)
+
   if (API_BASE_URL) {
-    await saveStateToApi(state)
+    await saveStateToApi(nextState)
   }
 }
 
@@ -169,9 +188,7 @@ export const updateProject = async (id: string, updates: Partial<VideoMeta>): Pr
   const state = await loadState()
   const index = state.projects.findIndex((p) => p.id === id)
 
-  if (index === -1) {
-    throw new Error('Project not found')
-  }
+  if (index === -1) throw new Error('Project not found')
 
   const updatedProject = { ...state.projects[index], ...updates }
   const projects = [...state.projects]
@@ -183,15 +200,13 @@ export const updateProject = async (id: string, updates: Partial<VideoMeta>): Pr
 
 export const addProject = async (project: VideoMeta): Promise<VideoMeta> => {
   const state = await loadState()
-  const projects = [...state.projects, project]
-  await saveState({ ...state, projects })
+  await saveState({ ...state, projects: [...state.projects, project] })
   return project
 }
 
 export const deleteProject = async (id: string): Promise<void> => {
   const state = await loadState()
-  const projects = state.projects.filter((p) => p.id !== id)
-  await saveState({ ...state, projects })
+  await saveState({ ...state, projects: state.projects.filter((p) => p.id !== id) })
 }
 
 export const getAboutMeImage = async (): Promise<string> => {
@@ -217,26 +232,18 @@ export const saveRoles = async (roles: string[]): Promise<void> => {
 export const addRole = async (role: string): Promise<void> => {
   const roles = await getRoles()
   const normalizedRole = role.toUpperCase().trim()
-  
-  if (!normalizedRole) {
-    throw new Error('Role cannot be empty')
-  }
-  
-  if (roles.includes(normalizedRole)) {
-    throw new Error('Role already exists')
-  }
-  
+
+  if (!normalizedRole) throw new Error('Role cannot be empty')
+  if (roles.includes(normalizedRole)) throw new Error('Role already exists')
+
   await saveRoles([...roles, normalizedRole])
 }
 
 export const deleteRole = async (role: string): Promise<void> => {
   const roles = await getRoles()
   const filtered = roles.filter((r) => r !== role)
-  
-  if (filtered.length === roles.length) {
-    throw new Error('Role not found')
-  }
-  
+
+  if (filtered.length === roles.length) throw new Error('Role not found')
+
   await saveRoles(filtered)
 }
-
