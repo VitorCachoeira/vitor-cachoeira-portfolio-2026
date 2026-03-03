@@ -10,12 +10,12 @@ const DEFAULT_ABOUT_ME_IMAGE =
   'https://pub-76ffd52f8d4541deba0aac1dbba56bf2.r2.dev/2fofo-nova_insta.jpg.jpeg'
 
 function App() {
-  const [projects, setProjects] = useState<VideoMeta[]>(videos)
+  const [projects, setProjects] = useState<VideoMeta[] | null>(null)
   const [aboutMeImage, setAboutMeImage] = useState<string>(DEFAULT_ABOUT_ME_IMAGE)
   const [availableRoles, setAvailableRoles] = useState<string[]>([])
 
   useEffect(() => {
-    // Carrega dados dinâmicos do painel admin
+    // Carrega dados dinâmicos do painel admin / backend
     Promise.all([getProjects(), getRoles(), getAboutMeImage()])
       .then(([projectsData, rolesData, aboutImage]) => {
         setProjects(projectsData)
@@ -31,6 +31,8 @@ function App() {
   }, [])
 
   const allRoles = useMemo<VideoRole[]>(() => {
+    if (!projects) return []
+
     const roleSet = new Set<VideoRole>()
     projects.forEach((video) => {
       video.roles.forEach((role) => roleSet.add(role))
@@ -43,11 +45,12 @@ function App() {
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null)
 
   const filteredVideos = useMemo(() => {
+    if (!projects) return []
     if (activeRole === 'All') return projects
     return projects.filter((video) => video.roles.includes(activeRole))
   }, [activeRole, projects])
 
-  const activeVideo = activeVideoId
+  const activeVideo = activeVideoId && projects
     ? projects.find((video) => video.id === activeVideoId) ?? null
     : null
 
