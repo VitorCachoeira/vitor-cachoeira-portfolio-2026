@@ -1,0 +1,100 @@
+.admin-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.9);
+  padding: 2rem;
+}
+
+.admin-login__container {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 3rem;
+  max-width: 400px;
+  width: 100%;
+  backdrop-filter: blur(10px);
+}
+
+.admin-login__title {
+  color: #ffffff;
+  font-size: 2rem;
+  margin: 0 0 2rem 0;
+  text-align: center;
+  font-family: 'Space Grotesk', 'IBM Plex Mono', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.admin-login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.admin-login__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-login__label {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+  font-family: 'Space Grotesk', 'IBM Plex Mono', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.admin-login__input {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  color: #ffffff;
+  font-size: 1rem;
+  font-family: 'Space Grotesk', 'IBM Plex Mono', sans-serif;
+  transition: border-color 300ms ease, background 300ms ease;
+}
+
+.admin-login__input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.admin-login__error {
+  color: #ff6b6b;
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 0.5rem;
+  background: rgba(255, 107, 107, 0.1);
+  border-radius: 4px;
+}
+
+.admin-login__button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  padding: 0.875rem 1.5rem;
+  color: #ffffff;
+  font-size: 1rem;
+  font-family: 'Space Grotesk', 'IBM Plex Mono', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: background 300ms ease, border-color 300ms ease, transform 300ms ease;
+}
+
+.admin-login__button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.02);
+}
+
+.admin-login__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
