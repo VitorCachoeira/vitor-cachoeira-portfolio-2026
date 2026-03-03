@@ -2,40 +2,53 @@ import './App.css'
 import { useEffect, useMemo, useState } from 'react'
 import { VideoGrid } from './components/VideoGrid.tsx'
 import { DitherBackground } from './components/DitherBackground.tsx'
-import { videos, type VideoRole } from './data/videos.ts'
-import { getRoles } from './services/api.ts'
+import { videos, type VideoRole, type VideoMeta } from './data/videos.ts'
+import { getRoles, getProjects, getAboutMeImage } from './services/api.ts'
+
+const DEFAULT_ROLES: VideoRole[] = ['DIRECTOR', 'CINEMATOGRAPHER', 'EDITOR', 'COLORIST', 'SOUNDTRACK']
+const DEFAULT_ABOUT_ME_IMAGE =
+  'https://pub-76ffd52f8d4541deba0aac1dbba56bf2.r2.dev/2fofo-nova_insta.jpg.jpeg'
 
 function App() {
-  const aboutMeImage = 'https://pub-76ffd52f8d4541deba0aac1dbba56bf2.r2.dev/2fofo-nova_insta.jpg.jpeg'
+  const [projects, setProjects] = useState<VideoMeta[]>(videos)
+  const [aboutMeImage, setAboutMeImage] = useState<string>(DEFAULT_ABOUT_ME_IMAGE)
   const [availableRoles, setAvailableRoles] = useState<string[]>([])
 
   useEffect(() => {
-    // Load roles from admin settings
-    getRoles().then(setAvailableRoles).catch(() => {
-      // Fallback to default roles if loading fails
-      setAvailableRoles(['DIRECTOR', 'CINEMATOGRAPHER', 'EDITOR', 'COLORIST', 'SOUNDTRACK'])
-    })
+    // Carrega dados dinâmicos do painel admin
+    Promise.all([getProjects(), getRoles(), getAboutMeImage()])
+      .then(([projectsData, rolesData, aboutImage]) => {
+        setProjects(projectsData)
+        setAvailableRoles(rolesData)
+        setAboutMeImage(aboutImage)
+      })
+      .catch(() => {
+        // Fallback se algo falhar: usa dados estáticos
+        setProjects(videos)
+        setAvailableRoles(DEFAULT_ROLES)
+        setAboutMeImage(DEFAULT_ABOUT_ME_IMAGE)
+      })
   }, [])
 
   const allRoles = useMemo<VideoRole[]>(() => {
     const roleSet = new Set<VideoRole>()
-    videos.forEach((video) => {
+    projects.forEach((video) => {
       video.roles.forEach((role) => roleSet.add(role))
     })
-    // Use available roles from admin, filtered by what's actually used in videos
+    // Usa os roles configurados no admin, mas só os que existem nos vídeos
     return availableRoles.filter((role) => roleSet.has(role as VideoRole)) as VideoRole[]
-  }, [availableRoles])
+  }, [availableRoles, projects])
   
   const [activeRole, setActiveRole] = useState<VideoRole | 'All'>('All')
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null)
 
   const filteredVideos = useMemo(() => {
-    if (activeRole === 'All') return videos
-    return videos.filter((video) => video.roles.includes(activeRole))
-  }, [activeRole])
+    if (activeRole === 'All') return projects
+    return projects.filter((video) => video.roles.includes(activeRole))
+  }, [activeRole, projects])
 
   const activeVideo = activeVideoId
-    ? videos.find((video) => video.id === activeVideoId) ?? null
+    ? projects.find((video) => video.id === activeVideoId) ?? null
     : null
 
   useEffect(() => {
