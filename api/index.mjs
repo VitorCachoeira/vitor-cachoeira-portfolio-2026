@@ -29,45 +29,10 @@ const pool = DATABASE_URL
     })
   : null
 
+// Conteúdo gerenciado exclusivamente pelo painel /admin.
+// Default vazio — se o banco não tiver dados, a home mostra lista vazia.
 const DEFAULT_STATE = {
-  projects: [
-    {
-      id: 'laroye',
-      title: 'LAROYÊ',
-      platform: 'youtube',
-      videoId: 'eEfurQ9uYYE',
-      year: '2021',
-      roles: ['DIRECTOR', 'EDITOR', 'COLORIST', 'SOUNDTRACK'],
-      embedUrl: 'https://www.youtube.com/embed/eEfurQ9uYYE?rel=0&modestbranding=1&playsinline=1',
-    },
-    {
-      id: 'thalassa',
-      title: 'THALASSA',
-      platform: 'youtube',
-      videoId: '8REf7Q46Izc',
-      year: '2022',
-      roles: ['DIRECTOR', 'CINEMATOGRAPHER', 'EDITOR', 'COLORIST'],
-      embedUrl: 'https://www.youtube.com/embed/8REf7Q46Izc?rel=0&modestbranding=1&playsinline=1',
-    },
-    {
-      id: 'vereda',
-      title: 'VEREDA',
-      platform: 'youtube',
-      videoId: 'ScTLp-7Nak8',
-      year: '2023',
-      roles: ['DIRECTOR', 'CINEMATOGRAPHER', 'EDITOR', 'COLORIST'],
-      embedUrl: 'https://www.youtube.com/embed/ScTLp-7Nak8?rel=0&modestbranding=1&playsinline=1',
-    },
-    {
-      id: 'kabeca-cheia-sentimentos-selvagens',
-      title: 'KABEÇA CHEIA SENTIMENTOS SELVAGENS',
-      platform: 'youtube',
-      videoId: 'wi5Mmo_89fE',
-      year: '2024',
-      roles: ['CINEMATOGRAPHER', 'EDITOR', 'COLORIST'],
-      embedUrl: 'https://www.youtube.com/embed/wi5Mmo_89fE?rel=0&modestbranding=1&playsinline=1',
-    },
-  ],
+  projects: [],
   roles: ['DIRECTOR', 'CINEMATOGRAPHER', 'EDITOR', 'COLORIST', 'SOUNDTRACK'],
   aboutMeImage: 'https://pub-76ffd52f8d4541deba0aac1dbba56bf2.r2.dev/2fofo-nova_insta.jpg.jpeg',
 }
@@ -96,7 +61,7 @@ async function getState() {
 
   const data = result.rows[0].data || {}
   return {
-    projects: Array.isArray(data.projects) && data.projects.length > 0 ? data.projects : DEFAULT_STATE.projects,
+    projects: Array.isArray(data.projects) ? data.projects : DEFAULT_STATE.projects,
     roles: Array.isArray(data.roles) && data.roles.length > 0 ? data.roles : DEFAULT_STATE.roles,
     aboutMeImage: data.aboutMeImage || DEFAULT_STATE.aboutMeImage,
   }
