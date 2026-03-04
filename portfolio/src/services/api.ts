@@ -30,6 +30,24 @@ const STORAGE_KEYS = {
   aboutMeImage: 'admin_about_me_image',
 }
 
+// Leitura síncrona do cache local — usada como estado inicial imediato no App
+// para que o conteúdo apareça instantaneamente enquanto a API ainda está acordando.
+export const getInitialStateSync = (): SiteState => {
+  try {
+    const projectsRaw = localStorage.getItem(STORAGE_KEYS.projects)
+    const rolesRaw = localStorage.getItem(STORAGE_KEYS.roles)
+    const aboutMeRaw = localStorage.getItem(STORAGE_KEYS.aboutMeImage)
+
+    return {
+      projects: projectsRaw ? (JSON.parse(projectsRaw) as VideoMeta[]) : DEFAULT_STATE.projects,
+      roles: rolesRaw ? (JSON.parse(rolesRaw) as string[]) : DEFAULT_STATE.roles,
+      aboutMeImage: aboutMeRaw || DEFAULT_STATE.aboutMeImage,
+    }
+  } catch {
+    return DEFAULT_STATE
+  }
+}
+
 // ----------------------
 // Auth (client-side)
 // ----------------------

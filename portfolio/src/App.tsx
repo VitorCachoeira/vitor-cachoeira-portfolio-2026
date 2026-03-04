@@ -2,20 +2,20 @@ import './App.css'
 import { useEffect, useMemo, useState } from 'react'
 import { VideoGrid } from './components/VideoGrid.tsx'
 import { DitherBackground } from './components/DitherBackground.tsx'
-import { videos, type VideoRole, type VideoMeta } from './data/videos.ts'
-import { getRoles, getProjects, getAboutMeImage } from './services/api.ts'
+import { type VideoRole, type VideoMeta } from './data/videos.ts'
+import { getRoles, getProjects, getAboutMeImage, getInitialStateSync } from './services/api.ts'
 
-const DEFAULT_ROLES: VideoRole[] = ['DIRECTOR', 'CINEMATOGRAPHER', 'EDITOR', 'COLORIST', 'SOUNDTRACK']
-const DEFAULT_ABOUT_ME_IMAGE =
-  'https://pub-76ffd52f8d4541deba0aac1dbba56bf2.r2.dev/2fofo-nova_insta.jpg.jpeg'
+// Estado inicial síncrono: lê do cache local imediatamente, sem esperar a API.
+// Garante que o conteúdo apareça na hora mesmo que a API demore para acordar.
+const _initial = getInitialStateSync()
 
 function App() {
-  const [projects, setProjects] = useState<VideoMeta[] | null>(null)
-  const [aboutMeImage, setAboutMeImage] = useState<string>(DEFAULT_ABOUT_ME_IMAGE)
-  const [availableRoles, setAvailableRoles] = useState<string[]>([])
+  const [projects, setProjects] = useState<VideoMeta[]>(_initial.projects)
+  const [aboutMeImage, setAboutMeImage] = useState<string>(_initial.aboutMeImage)
+  const [availableRoles, setAvailableRoles] = useState<string[]>(_initial.roles)
 
   useEffect(() => {
-    // Carrega dados dinâmicos do painel admin / backend
+    // Atualiza silenciosamente com os dados do backend (pode demorar no cold start)
     Promise.all([getProjects(), getRoles(), getAboutMeImage()])
       .then(([projectsData, rolesData, aboutImage]) => {
         setProjects(projectsData)
@@ -23,16 +23,11 @@ function App() {
         setAboutMeImage(aboutImage)
       })
       .catch(() => {
-        // Fallback se algo falhar: usa dados estáticos
-        setProjects(videos)
-        setAvailableRoles(DEFAULT_ROLES)
-        setAboutMeImage(DEFAULT_ABOUT_ME_IMAGE)
+        // se a API falhar, mantém o que já está sendo exibido (cache local)
       })
   }, [])
 
   const allRoles = useMemo<VideoRole[]>(() => {
-    if (!projects) return []
-
     const roleSet = new Set<VideoRole>()
     projects.forEach((video) => {
       video.roles.forEach((role) => roleSet.add(role))
@@ -45,12 +40,11 @@ function App() {
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null)
 
   const filteredVideos = useMemo(() => {
-    if (!projects) return []
     if (activeRole === 'All') return projects
     return projects.filter((video) => video.roles.includes(activeRole))
   }, [activeRole, projects])
 
-  const activeVideo = activeVideoId && projects
+  const activeVideo = activeVideoId
     ? projects.find((video) => video.id === activeVideoId) ?? null
     : null
 
