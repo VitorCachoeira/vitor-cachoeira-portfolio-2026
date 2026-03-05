@@ -84,7 +84,7 @@ function App() {
             />
           </button>
           <div className="hero__titles">
-            <p className="hero__subtitle">multimidia artist, filmmaker</p>
+            <p className="hero__subtitle">multimedia artist, filmmaker</p>
             <h1 className="hero__heading">
               <span className="hero__heading-line1">Vitor</span>
               <span className="hero__heading-line2">Cachoeira</span>
