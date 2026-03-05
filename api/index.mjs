@@ -6,7 +6,7 @@ const { Pool } = pkg
 
 const PORT = process.env.PORT || 3000
 const DATABASE_URL = process.env.DATABASE_URL
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123'
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123@fx30495'
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*'
 
 if (!DATABASE_URL) {
